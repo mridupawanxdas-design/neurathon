@@ -1,95 +1,88 @@
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
+
 from app.core.database import get_db
-from app.models.schemas import RecordCreate
-from app.services.pdf_engine import generate_invoice
+from app.services.pdf_invoice import generate_invoice
+from app.nlp.parser import parse_text
 
 router = APIRouter()
 
+
 @router.get("/try-biz-agent")
 def try_biz_agent():
-    return {
-        "status": "ready",
-        "demo_video": "/static/demo.mp4"
-    }
+    return {"status": "ready"}
 
-@router.get("/load-demo")
-def load_demo():
-    conn = get_db()
-    cur = conn.cursor()
-
-    cur.execute("DELETE FROM records")
-
-    demo = [
-        ("BILL", "Sharma Trading Co", 2000, 360, 2360, "Demo Bill"),
-        ("UDHAAR", "Rahul Sharma", 500, 0, 500, "Demo Udhaar")
-    ]
-
-    cur.executemany("""
-        INSERT INTO records
-        (category, customer_name, base_amount, tax_amount, total_amount, notes)
-        VALUES (?,?,?,?,?,?)
-    """, demo)
-
-    conn.commit()
-    conn.close()
-
-    return {"status": "demo_loaded"}
 
 @router.post("/add-record")
-def add_record(record: RecordCreate):
-    total = record.base_amount + record.tax_amount
+def add_record(name: str, amount: float, gst: bool = True):
+    name = name.strip()
+    tax = amount * 0.18 if gst else 0.0
+    total = amount + tax
 
     conn = get_db()
-    cur = conn.cursor()
-
-    cur.execute("""
-        INSERT INTO records
-        (category, customer_name, base_amount, tax_amount, total_amount, notes)
-        VALUES (?,?,?,?,?,?)
-    """, (
-        record.category.upper(),
-        record.customer_name.strip(),
-        record.base_amount,
-        record.tax_amount,
-        total,
-        record.notes
-    ))
-
+    conn.execute(
+        """
+        INSERT INTO records (category, customer_name, base_amount, tax_amount, total_amount)
+        VALUES (?, ?, ?, ?, ?)
+        """,
+        ("BILL", name, amount, tax, total),
+    )
     conn.commit()
     conn.close()
 
     return {"status": "saved", "total": total}
 
-@router.get("/view-khata")
-def view_khata():
+
+@router.post("/add-record-ai")
+def add_record_ai(text: str):
+    data = parse_text(text)
+
     conn = get_db()
-    rows = conn.execute(
-        "SELECT * FROM records ORDER BY created_at DESC"
-    ).fetchall()
+    conn.execute(
+        """
+        INSERT INTO records (category, customer_name, base_amount, tax_amount, total_amount, notes)
+        VALUES (?, ?, ?, ?, ?, ?)
+        """,
+        (
+            "BILL",
+            data["name"],
+            data["base"],
+            data["tax"],
+            data["total"],
+            text,
+        ),
+    )
+    conn.commit()
     conn.close()
 
-    return [dict(r) for r in rows]
+    return data
+
 
 @router.get("/generate-invoice")
-def generate_invoice_api(customer_name: str):
+def generate_invoice_api(name: str):
+    name = name.strip().lower()
+
     conn = get_db()
-    row = conn.execute("""
-        SELECT * FROM records
-        WHERE customer_name=?
+    row = conn.execute(
+        """
+        SELECT *
+        FROM records
+        WHERE LOWER(TRIM(customer_name)) = ?
         ORDER BY created_at DESC
         LIMIT 1
-    """, (customer_name.strip(),)).fetchone()
+        """,
+        (name,),
+    ).fetchone()
     conn.close()
 
     if not row:
-        raise HTTPException(404, "Customer not found")
+        raise HTTPException(status_code=404, detail="No record found")
 
     path, filename = generate_invoice(
         row["customer_name"],
         row["base_amount"],
         row["tax_amount"],
-        row["total_amount"]
+        row["total_amount"],
     )
 
-    return FileResponse(path, filename=filename)
+    return FileResponse(path, filename=filename, media_type="application/pdf")
