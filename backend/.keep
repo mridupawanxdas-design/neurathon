@@ -5,3 +5,4 @@ int main() {
     printf("Hello, World!\n");
     return 0;
 }
+// This is a placeholder file to ensure the backend directory is tracked by version control.
