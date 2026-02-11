@@ -1,5 +1,7 @@
 import sqlite3
-from app.core.config import DB_PATH
+from pathlib import Path
+
+DB_PATH = Path("biz.db")
 
 def get_db():
     conn = sqlite3.connect(DB_PATH, check_same_thread=False)
@@ -8,19 +10,44 @@ def get_db():
 
 def init_db():
     conn = get_db()
-    cursor = conn.cursor()
+    cur = conn.cursor()
 
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS records (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            category TEXT NOT NULL,
-            customer_name TEXT NOT NULL,
-            base_amount REAL NOT NULL CHECK(base_amount >= 0),
-            tax_amount REAL NOT NULL CHECK(tax_amount >= 0),
-            total_amount REAL NOT NULL CHECK(total_amount >= 0),
-            notes TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
+    # Records (Bills)
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS records (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        category TEXT,
+        customer_name TEXT,
+        base_amount REAL,
+        tax_amount REAL,
+        total_amount REAL,
+        notes TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+
+    # Udhaar
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS udhaar (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT,
+        phone TEXT,
+        amount REAL,
+        reason TEXT,
+        given_on DATE DEFAULT CURRENT_DATE
+    )
+    """)
+
+    # Inventory
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS inventory (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        item_name TEXT,
+        quantity INTEGER,
+        buy_price REAL,
+        sell_price REAL,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
     """)
 
     conn.commit()
