@@ -1,0 +1,65 @@
+/* src/index.css - minimal, clean, modern baseline */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+
+:root{
+  --bg: #0f1724;        /* dark background */
+  --card: #0b1220;
+  --accent: #16a34a;    /* emerald */
+  --text: #e6eef0;
+  --muted: #9aa6ad;
+  --glass: rgba(255,255,255,0.03);
+}
+
+*{ box-sizing:border-box; margin:0; padding:0; }
+html,body,#root{ height:100%; }
+body{
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  background: linear-gradient(180deg,#071026 0%, #081423 100%);
+  color:var(--text);
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+  padding:24px;
+}
+
+/* Basic container */
+.container{
+  max-width:1100px;
+  margin:0 auto;
+  padding:20px;
+}
+
+/* Simple card */
+.card{
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), transparent);
+  border-radius:12px;
+  padding:18px;
+  box-shadow: 0 8px 30px rgba(2,6,23,0.6);
+  border: 1px solid rgba(255,255,255,0.03);
+}
+
+/* buttons */
+.btn{
+  background: linear-gradient(90deg,var(--accent),#2fc27f);
+  color:#042018;
+  padding:10px 16px;
+  border-radius:10px;
+  font-weight:600;
+  cursor:pointer;
+  border:none;
+  box-shadow: 0 6px 18px rgba(20,80,50,0.15);
+}
+.btn.ghost{
+  background: transparent;
+  border:1px solid rgba(255,255,255,0.06);
+  color:var(--text);
+}
+
+/* inputs */
+.input {
+  padding:10px 12px;
+  border-radius:8px;
+  background:var(--glass);
+  border:1px solid rgba(255,255,255,0.03);
+  color:var(--text);
+  outline:none;
+}
