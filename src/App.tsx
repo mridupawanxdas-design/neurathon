@@ -1,5 +1,5 @@
 import { Routes, Route } from "react-router-dom";
-import Landing from "./pages/Landing";
+import Index from "./pages/Index";
 import LoginPage from "./pages/LoginPage";
 import Dashboard from "./pages/Dashboard";
 import Invoice from "./pages/Invoice";
@@ -9,7 +9,7 @@ import Inventory from "./pages/Inventory";
 export default function App() {
   return (
     <Routes>
-      <Route path="/" element={<Landing />} />
+      <Route path="/" element={<Index />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/dashboard" element={<Dashboard />} />
       <Route path="/invoice" element={<Invoice />} />
