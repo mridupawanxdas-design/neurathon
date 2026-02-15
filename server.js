@@ -110,8 +110,7 @@ const generateStyledPdf = ({ invoiceId, customer, rows = [], totals = {} }) => {
   const obj3 =
     "3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >> endobj\n";
   const obj4 = `4 0 obj << /Length ${stream.length} >> stream\n${stream}\nendstream endobj\n`;
-  const obj5 =
-    "5 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj\n";
+  const obj5 = "5 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj\n";
 
   const parts = [obj1, obj2, obj3, obj4, obj5];
   let cursor = 9;
@@ -132,8 +131,7 @@ const generateStyledPdf = ({ invoiceId, customer, rows = [], totals = {} }) => {
   return Buffer.from(`%PDF-1.4\n${parts.join("")}${xref}${trailer}`, "utf8");
 };
 
-const recalcUdhaar = () =>
-  db.udhaar.map((x) => ({ ...x, outstanding: Math.max(0, x.amount - x.paidAmount) }));
+const recalcUdhaar = () => db.udhaar.map((x) => ({ ...x, outstanding: Math.max(0, x.amount - x.paidAmount) }));
 
 const buildSummary = () => {
   const ledger = recalcUdhaar();
@@ -144,6 +142,20 @@ const buildSummary = () => {
     udhaarOutstanding: outstanding,
     lowStock: db.inventory.filter((x) => x.quantity <= x.threshold).length,
   };
+};
+
+const chatReply = (language, message) => {
+  const map = {
+    english: "Done. I updated your business workspace.",
+    hinglish: "Ho gaya. Workspace update kar diya hai.",
+    hindi: "हो गया। आपका बिज़नेस वर्कस्पेस अपडेट कर दिया है।",
+    telugu: "పూర్తైంది. మీ బిజినెస్ వర్క్‌స్పేస్ అప్డేట్ అయింది.",
+    gujarati: "થઈ ગયું. તમારું બિઝનેસ વર્કસ્પેસ અપડેટ થયું.",
+    bangla: "হয়ে গেছে। আপনার বিজনেস ওয়ার্কস্পেস আপডেট হয়েছে।",
+    tamil: "முடிந்தது. உங்கள் பிசினஸ் வேலைப்பகுதி புதுப்பிக்கப்பட்டது.",
+    marathi: "झाले. तुमचे बिझनेस वर्कस्पेस अपडेट केले आहे.",
+  };
+  return `${map[language?.toLowerCase()] || map.english}\n\n"${message || ""}"`;
 };
 
 const server = http.createServer(async (req, res) => {
@@ -158,8 +170,42 @@ const server = http.createServer(async (req, res) => {
 
   const url = new URL(req.url || "/", `http://${req.headers.host}`);
 
-  if (req.method === "GET" && url.pathname === "/health")
-    return sendJson(res, 200, { ok: true });
+  if (req.method === "GET" && url.pathname === "/health") return sendJson(res, 200, { ok: true });
+
+  if (req.method === "POST" && url.pathname === "/auth/login") {
+    const { email, password } = await readJson(req);
+    const normalizedEmail = String(email || "").trim().toLowerCase();
+    const normalizedPassword = String(password || "").trim();
+    const user = db.users.find((u) => u.email.toLowerCase() === normalizedEmail && u.password === normalizedPassword);
+    if (!user) return sendJson(res, 401, { message: "Invalid credentials" });
+    return sendJson(res, 200, { token: `token-${user.id}`, profile: { id: user.id, name: user.name, email: user.email }, mode: "owner" });
+  }
+
+  if (req.method === "POST" && url.pathname === "/auth/guest") {
+    return sendJson(res, 200, { token: "guest-token", profile: { id: "guest", name: "Guest User" }, mode: "guest" });
+  }
+
+  if (req.method === "POST" && url.pathname === "/chat") {
+    const { message = "", language = "english" } = await readJson(req);
+    return sendJson(res, 200, { reply: chatReply(language, message), summary: buildSummary() });
+  }
+
+  if (req.method === "GET" && url.pathname === "/dashboard/summary") return sendJson(res, 200, buildSummary());
+
+  if (req.method === "GET" && url.pathname === "/invoices") {
+    const list = [...db.invoices].sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt));
+    return sendJson(res, 200, list);
+  }
+
+  if (req.method === "POST" && url.pathname === "/invoices") {
+    const { customer, amount, gst } = await readJson(req);
+    const base = Number(amount || 0);
+    const gstAmount = gst ? Number((base * 0.18).toFixed(2)) : 0;
+    const total = Number((base + gstAmount).toFixed(2));
+    const invoice = { id: randomUUID(), customer: customer || "Unknown", amount: base, gst: !!gst, gstAmount, total, status: "sent", createdAt: nowIso() };
+    db.invoices.unshift(invoice);
+    return sendJson(res, 201, invoice);
+  }
 
   if (req.method === "POST" && url.pathname === "/generate-invoice") {
     const { name, amount, gst } = await readJson(req);
@@ -194,6 +240,45 @@ const server = http.createServer(async (req, res) => {
     return res.end(pdf);
   }
 
+  if (req.method === "GET" && url.pathname === "/udhaar/list") {
+    const entries = recalcUdhaar().sort((a, b) => +new Date(b.takenAt) - +new Date(a.takenAt));
+    const summary = {
+      totalGiven: entries.reduce((s, x) => s + x.amount, 0),
+      totalPaid: entries.reduce((s, x) => s + x.paidAmount, 0),
+      totalOutstanding: entries.reduce((s, x) => s + x.outstanding, 0),
+    };
+    return sendJson(res, 200, { entries, summary });
+  }
+
+  if (req.method === "POST" && url.pathname === "/udhaar") {
+    const { name, amount, reason } = await readJson(req);
+    const entry = {
+      id: randomUUID(),
+      name: name || "Unknown",
+      amount: Number(amount || 0),
+      reason: reason || "Business credit",
+      takenAt: nowIso(),
+      paidAmount: 0,
+      paidAt: null,
+      status: "pending",
+    };
+    db.udhaar.unshift(entry);
+    return sendJson(res, 201, entry);
+  }
+
+  if (req.method === "PATCH" && url.pathname.startsWith("/udhaar/") && url.pathname.endsWith("/pay")) {
+    const id = url.pathname.split("/")[2];
+    const body = await readJson(req);
+    const pay = Number(body.amount || 0);
+    const idx = db.udhaar.findIndex((x) => x.id === id);
+    if (idx < 0) return sendJson(res, 404, { message: "Entry not found" });
+    const item = db.udhaar[idx];
+    item.paidAmount = Math.min(item.amount, Number((item.paidAmount + pay).toFixed(2)));
+    item.paidAt = nowIso();
+    item.status = item.paidAmount >= item.amount ? "closed" : "partial";
+    return sendJson(res, 200, item);
+  }
+
   if (req.method === "POST" && url.pathname === "/generate-udhaar") {
     const { name, amount, reason } = await readJson(req);
     const value = Number(amount || 0);
@@ -225,9 +310,25 @@ const server = http.createServer(async (req, res) => {
     return res.end(pdf);
   }
 
+  if (req.method === "GET" && url.pathname === "/inventory") return sendJson(res, 200, db.inventory);
+
+  if (req.method === "POST" && url.pathname === "/inventory") {
+    const body = await readJson(req);
+    const item = { id: randomUUID(), ...body, quantity: Number(body.quantity), threshold: Number(body.threshold), price: Number(body.price) };
+    db.inventory.unshift(item);
+    return sendJson(res, 201, item);
+  }
+
+  if (req.method === "PATCH" && url.pathname.startsWith("/inventory/")) {
+    const id = url.pathname.split("/")[2];
+    const idx = db.inventory.findIndex((x) => x.id === id);
+    if (idx < 0) return sendJson(res, 404, { message: "Item not found" });
+    const body = await readJson(req);
+    db.inventory[idx] = { ...db.inventory[idx], ...body, quantity: Number(body.quantity ?? db.inventory[idx].quantity) };
+    return sendJson(res, 200, db.inventory[idx]);
+  }
+
   return sendJson(res, 404, { message: "Not found" });
 });
 
-server.listen(PORT, () =>
-  console.log(`Biz-Agent backend running at http://127.0.0.1:${PORT}`)
-);
+server.listen(PORT, () => console.log(`Biz-Agent backend running at http://127.0.0.1:${PORT}`));
