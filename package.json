@@ -12,11 +12,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "server": "node server.js",
-    "dev:full": "node scripts/dev-full.mjs",
-    "dev-full": "node scripts/dev-full.mjs",
-    "devfull": "node scripts/dev-full.mjs",
-    "start": "node scripts/dev-full.mjs",
-    "doctor": "node scripts/doctor.mjs"
+    "dev:full": "node scripts/dev-full.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
