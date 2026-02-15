@@ -44,34 +44,93 @@ const sendJson = (res, code, payload) => {
 
 const escapePdfText = (v) => String(v).replace(/[()\\]/g, "");
 
-const generateSimplePdf = ({ title, subtitle, rows, totalLabel }) => {
-  const lines = [title, subtitle, ...rows.map((r) => `${r.label}: ${r.value}`), totalLabel];
-  const content = [
-    "BT", "/F1 22 Tf", "40 780 Td", `(Bharat Biz-Agent) Tj`, "0 -30 Td", "/F1 16 Tf",
-    `(${escapePdfText(title)}) Tj`, "0 -25 Td", "/F1 11 Tf", `(${escapePdfText(subtitle)}) Tj`,
-  ];
+const generateStyledPdf = ({
+  type = "invoice",
+  invoiceId,
+  customer,
+  rows = [],
+  totals = {},
+}) => {
+  const today = new Date().toLocaleDateString("en-IN");
 
-  lines.slice(2).forEach((line, idx) => {
-    content.push("0 -22 Td");
-    content.push(`(${escapePdfText(line)}) Tj`);
-    if (idx === lines.length - 3) content.push("0 -12 Td");
+  const content = [];
+
+  content.push("BT");
+  content.push("/F1 26 Tf");
+  content.push("40 800 Td");
+  content.push("(INVOICE) Tj");
+
+  content.push("0 -25 Td");
+  content.push("/F1 10 Tf");
+  content.push("(Biz-Agent Pvt Ltd) Tj");
+
+  content.push("0 -15 Td");
+  content.push("(New Delhi, India) Tj");
+
+  content.push("0 -40 Td");
+  content.push("/F1 12 Tf");
+  content.push(`(Bill To: ${customer}) Tj`);
+
+  content.push("0 -15 Td");
+  content.push(`(Invoice No: ${invoiceId}) Tj`);
+
+  content.push("0 -15 Td");
+  content.push(`(Date: ${today}) Tj`);
+
+  content.push("0 -40 Td");
+  content.push("/F1 11 Tf");
+  content.push("(Description                Amount) Tj");
+
+  rows.forEach((r) => {
+    content.push("0 -18 Td");
+    content.push(`(${escapePdfText(r.label)}        ${escapePdfText(r.value)}) Tj`);
   });
+
+  content.push("0 -30 Td");
+  content.push("/F1 12 Tf");
+  content.push(`(Subtotal: INR ${totals.subtotal?.toFixed(2) || "0.00"}) Tj`);
+
+  if (totals.gst) {
+    content.push("0 -18 Td");
+    content.push(`(GST 18%: INR ${totals.gst.toFixed(2)}) Tj`);
+  }
+
+  content.push("0 -20 Td");
+  content.push("/F1 14 Tf");
+  content.push(`(TOTAL: INR ${totals.total?.toFixed(2) || "0.00"}) Tj`);
+
+  content.push("0 -40 Td");
+  content.push("/F1 10 Tf");
+  content.push("(Authorized Signature) Tj");
+
   content.push("ET");
 
   const stream = content.join("\n");
+
   const obj1 = "1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj\n";
   const obj2 = "2 0 obj << /Type /Pages /Count 1 /Kids [3 0 R] >> endobj\n";
-  const obj3 = "3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >> endobj\n";
+  const obj3 =
+    "3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >> endobj\n";
   const obj4 = `4 0 obj << /Length ${stream.length} >> stream\n${stream}\nendstream endobj\n`;
-  const obj5 = "5 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj\n";
+  const obj5 =
+    "5 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj\n";
 
   const parts = [obj1, obj2, obj3, obj4, obj5];
   let cursor = 9;
   const offsets = [0];
-  for (const p of parts) { offsets.push(cursor); cursor += Buffer.byteLength(p, "utf8"); }
 
-  const xref = `xref\n0 6\n0000000000 65535 f \n${offsets.slice(1).map((x) => `${String(x).padStart(10, "0")} 00000 n `).join("\n")}\n`;
+  for (const p of parts) {
+    offsets.push(cursor);
+    cursor += Buffer.byteLength(p, "utf8");
+  }
+
+  const xref = `xref\n0 6\n0000000000 65535 f \n${offsets
+    .slice(1)
+    .map((x) => `${String(x).padStart(10, "0")} 00000 n `)
+    .join("\n")}\n`;
+
   const trailer = `trailer << /Size 6 /Root 1 0 R >>\nstartxref\n${cursor}\n%%EOF`;
+
   return Buffer.from(`%PDF-1.4\n${parts.join("")}${xref}${trailer}`, "utf8");
 };
 
@@ -159,16 +218,21 @@ const server = http.createServer(async (req, res) => {
     const invoice = { id: randomUUID(), customer: name || "Unknown", amount: base, gst: !!gst, gstAmount, total, status: "sent", createdAt: nowIso() };
     db.invoices.unshift(invoice);
 
-    const pdf = generateSimplePdf({
-      title: "Invoice & GST Billing",
-      subtitle: `Customer: ${invoice.customer}  |  Invoice: ${invoice.id.slice(0, 8).toUpperCase()}`,
-      rows: [
-        { label: "Base Amount", value: `INR ${base.toFixed(2)}` },
-        { label: "GST", value: gst ? `INR ${gstAmount.toFixed(2)} (18%)` : "Not Applied" },
-        { label: "Status", value: invoice.status.toUpperCase() },
-      ],
-      totalLabel: `Total: INR ${total.toFixed(2)}`,
-    });
+   const pdf = generateStyledPdf({
+  type: "invoice",
+  invoiceId: invoice.id.slice(0, 8).toUpperCase(),
+  customer: invoice.customer,
+  rows: [
+    { label: "Base Amount", value: `INR ${base.toFixed(2)}` },
+    { label: "GST", value: gst ? `INR ${gstAmount.toFixed(2)}` : "Not Applied" },
+  ],
+  totals: {
+    subtotal: base,
+    gst: gst ? gstAmount : 0,
+    total: total,
+  },
+});
+
     res.writeHead(200, { "Content-Type": "application/pdf", "Access-Control-Allow-Origin": "*" });
     return res.end(pdf);
   }
@@ -218,16 +282,12 @@ const server = http.createServer(async (req, res) => {
     const entry = { id: randomUUID(), name: name || "Unknown", amount: value, reason: reason || "Business credit", takenAt: nowIso(), paidAmount: 0, paidAt: null, status: "pending" };
     db.udhaar.unshift(entry);
 
-    const pdf = generateSimplePdf({
-      title: "Udhaar / Credit Ledger",
-      subtitle: `Borrower: ${entry.name}  |  Entry: ${entry.id.slice(0, 8).toUpperCase()}`,
-      rows: [
-        { label: "Amount", value: `INR ${value.toFixed(2)}` },
-        { label: "Reason", value: entry.reason },
-        { label: "Taken On", value: new Date(entry.takenAt).toLocaleDateString("en-IN") },
-      ],
-      totalLabel: `Outstanding: INR ${value.toFixed(2)}`,
-    });
+   const pdf = generateStyledPdf({
+  type: "udhaar",
+  invoiceId: entry.id.slice(0, 8).toUpperCase(),
+  customer: entry.name,
+  row
+
     res.writeHead(200, { "Content-Type": "application/pdf", "Access-Control-Allow-Origin": "*" });
     return res.end(pdf);
   }
