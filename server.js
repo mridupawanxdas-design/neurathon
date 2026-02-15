@@ -51,56 +51,96 @@ const escapePdfText = (v) => String(v).replace(/[()\\]/g, "");
 
 const generateStyledPdf = ({ invoiceId, customer, rows = [], totals = {} }) => {
   const today = new Date().toLocaleDateString("en-IN");
+
   const content = [];
 
+  content.push("q");
+  content.push("0 792 595 50 re");
+  content.push("0.1 0.6 0.6 rg");
+  content.push("f");
+  content.push("Q");
+
   content.push("BT");
-  content.push("/F1 26 Tf");
-  content.push("40 800 Td");
+  content.push("/F1 28 Tf");
+  content.push("50 810 Td");
+  content.push("1 1 1 rg");
   content.push("(INVOICE) Tj");
+  content.push("ET");
 
-  content.push("0 -25 Td");
+  content.push("BT");
   content.push("/F1 10 Tf");
+  content.push("50 770 Td");
+  content.push("0 0 0 rg");
   content.push("(Biz-Agent Pvt Ltd) Tj");
-
-  content.push("0 -15 Td");
+  content.push("0 -14 Td");
   content.push("(New Delhi, India) Tj");
+  content.push("ET");
 
-  content.push("0 -40 Td");
-  content.push("/F1 12 Tf");
-  content.push(`(Bill To: ${escapePdfText(customer)}) Tj`);
-
-  content.push("0 -15 Td");
-  content.push(`(Invoice No: ${invoiceId}) Tj`);
-
-  content.push("0 -15 Td");
-  content.push(`(Date: ${today}) Tj`);
-
-  content.push("0 -40 Td");
+  content.push("BT");
   content.push("/F1 11 Tf");
-  content.push("(Description                Amount) Tj");
+  content.push("400 770 Td");
+  content.push(`(Invoice No: ${invoiceId}) Tj`);
+  content.push("0 -14 Td");
+  content.push(`(Date: ${today}) Tj`);
+  content.push("ET");
+
+  content.push("BT");
+  content.push("/F1 13 Tf");
+  content.push("50 720 Td");
+  content.push(`(Bill To: ${customer}) Tj`);
+  content.push("ET");
+
+  content.push("q");
+  content.push("50 690 495 25 re");
+  content.push("0.9 0.9 0.9 rg");
+  content.push("f");
+  content.push("Q");
+
+  content.push("BT");
+  content.push("/F1 11 Tf");
+  content.push("60 698 Td");
+  content.push("(Description) Tj");
+  content.push("390 0 Td");
+  content.push("(Amount) Tj");
+  content.push("ET");
+
+  let y = 670;
 
   rows.forEach((r) => {
-    content.push("0 -18 Td");
-    content.push(`(${escapePdfText(r.label)}        ${escapePdfText(r.value)}) Tj`);
+    content.push("BT");
+    content.push("/F1 11 Tf");
+    content.push(`60 ${y} Td`);
+    content.push(`(${r.label}) Tj`);
+    content.push("330 0 Td");
+    content.push(`(${r.value}) Tj`);
+    content.push("ET");
+    y -= 22;
   });
 
-  content.push("0 -30 Td");
-  content.push("/F1 12 Tf");
+  content.push("q");
+  content.push(`330 ${y - 10} 215 70 re`);
+  content.push("S");
+  content.push("Q");
+
+  content.push("BT");
+  content.push("/F1 11 Tf");
+  content.push(`340 ${y + 40} Td`);
   content.push(`(Subtotal: INR ${Number(totals.subtotal || 0).toFixed(2)}) Tj`);
+  content.push("0 -15 Td");
 
   if (totals.gst) {
-    content.push("0 -18 Td");
     content.push(`(GST 18%: INR ${Number(totals.gst).toFixed(2)}) Tj`);
+    content.push("0 -15 Td");
   }
 
-  content.push("0 -20 Td");
   content.push("/F1 14 Tf");
   content.push(`(TOTAL: INR ${Number(totals.total || 0).toFixed(2)}) Tj`);
+  content.push("ET");
 
-  content.push("0 -40 Td");
+  content.push("BT");
   content.push("/F1 10 Tf");
+  content.push("50 100 Td");
   content.push("(Authorized Signature) Tj");
-
   content.push("ET");
 
   const stream = content.join("\n");
@@ -110,9 +150,11 @@ const generateStyledPdf = ({ invoiceId, customer, rows = [], totals = {} }) => {
   const obj3 =
     "3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >> endobj\n";
   const obj4 = `4 0 obj << /Length ${stream.length} >> stream\n${stream}\nendstream endobj\n`;
-  const obj5 = "5 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj\n";
+  const obj5 =
+    "5 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj\n";
 
   const parts = [obj1, obj2, obj3, obj4, obj5];
+
   let cursor = 9;
   const offsets = [0];
 
@@ -121,15 +163,23 @@ const generateStyledPdf = ({ invoiceId, customer, rows = [], totals = {} }) => {
     cursor += Buffer.byteLength(p, "utf8");
   }
 
-  const xref = `xref\n0 6\n0000000000 65535 f \n${offsets
-    .slice(1)
-    .map((x) => `${String(x).padStart(10, "0")} 00000 n `)
-    .join("\n")}\n`;
+  const xref = `xref
+0 6
+0000000000 65535 f 
+${offsets
+  .slice(1)
+  .map((x) => `${String(x).padStart(10, "0")} 00000 n `)
+  .join("\n")}
+`;
 
-  const trailer = `trailer << /Size 6 /Root 1 0 R >>\nstartxref\n${cursor}\n%%EOF`;
+  const trailer = `trailer << /Size 6 /Root 1 0 R >>
+startxref
+${cursor}
+%%EOF`;
 
   return Buffer.from(`%PDF-1.4\n${parts.join("")}${xref}${trailer}`, "utf8");
 };
+
 
 const recalcUdhaar = () => db.udhaar.map((x) => ({ ...x, outstanding: Math.max(0, x.amount - x.paidAmount) }));
 
