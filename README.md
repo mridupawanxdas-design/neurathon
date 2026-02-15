@@ -102,6 +102,27 @@ npm start
 npm run server
 ```
 
+## One-command local run (recommended)
+
+```bash
+npm run dev:full
+```
+
+This starts:
+- frontend at **http://localhost:5173**
+- backend at **http://127.0.0.1:8000**
+
+Then open:
+- Home page: `http://localhost:5173/`
+- Login page: `http://localhost:5173/login`
+
+## Separate run (manual)
+
+### Terminal 1
+```bash
+npm run server
+```
+
 ### Terminal 2
 ```bash
 npm run dev
