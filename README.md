@@ -1,73 +1,81 @@
-# Welcome to your Lovable project
+# Bharat Biz-Agent (Operational Prototype)
 
-## Project info
+A local full-stack prototype for Indian business operations:
+- fluid multilingual landing website (light/dark + language switch),
+- login/guest entry,
+- working dashboard chat,
+- invoice + GST PDF generation,
+- udhaar ledger + repayments + PDF generation,
+- real-time-style inventory tracking.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## One-command local run (recommended)
 
-## How can I edit this code?
+```bash
+npm run dev:full
+```
 
-There are several ways of editing your application.
+This starts:
+- frontend at **http://localhost:5173**
+- backend at **http://127.0.0.1:8000**
 
-**Use Lovable**
+Then open:
+- Home page: `http://localhost:5173/`
+- Login page: `http://localhost:5173/login`
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+## Separate run (manual)
 
-Changes made via Lovable will be committed automatically to this repo.
+### Terminal 1
+```bash
+npm run server
+```
 
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+### Terminal 2
+```bash
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+## How frontend and backend are connected
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+- Frontend uses `API_BASE=/api` by default.
+- Vite proxies `/api/*` to backend (`http://127.0.0.1:8000`) in local dev.
+- So API calls work from browser without CORS/manual URL editing.
 
-**Use GitHub Codespaces**
+## Docker run
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+```bash
+docker compose up --build
+```
 
-## What technologies are used for this project?
+- Frontend: `http://localhost:5173`
+- Backend: `http://localhost:8000`
 
-This project is built with:
+The frontend container is also configured to proxy `/api` to `backend:8000`.
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+## Demo flow
+1. Open `/` and click **Try the Agent**.
+2. Use prefilled credentials (`owner@bizagent.in / demo123`) or continue as guest.
+3. Dashboard: use chat and navigate sections.
+4. Invoice Center: add entries and download invoice PDF.
+5. Udhaar Ledger: add entries, record repayments, and download ledger PDF.
+6. Inventory: add stock and adjust quantity.
 
-## How can I deploy this project?
+## Notes
+- Backend is currently in-memory for prototype speed; data resets on restart.
+- This structure is deployable later by replacing in-memory DB and keeping API contracts.
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+## If you want to bring your Lovable frontend repo
 
-## Can I connect a custom domain to my Lovable project?
+You can import your design repo and keep this backend/API wiring:
 
-Yes, you can!
+```bash
+git remote add lovable-frontend https://github.com/mridupawanxdas-design/bharat-biz-agent-frontend.git
+git fetch lovable-frontend
+git checkout -b merge-lovable-ui
+```
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+Keep these files from this repo for operations:
+- `server.js`
+- `src/api.ts`
+- `src/config.ts`
+- `vite.config.ts`
+- operational pages in `src/pages/*` that call backend APIs.
