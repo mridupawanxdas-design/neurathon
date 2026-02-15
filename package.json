@@ -1,0 +1,31 @@
+{
+  "name": "neurathon",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "server": "node server.js",
+    "dev:full": "node scripts/dev-full.mjs",
+    "dev-full": "node scripts/dev-full.mjs",
+    "devfull": "node scripts/dev-full.mjs",
+    "start": "node scripts/dev-full.mjs",
+    "doctor": "node scripts/doctor.mjs"
+
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mridupawanxdas-design/neurathon.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/mridupawanxdas-design/neurathon/issues"
+  },
+  "homepage": "https://github.com/mridupawanxdas-design/neurathon#readme"
+}
