@@ -1,34 +1,46 @@
-import fs from 'node:fs';
+import { spawn } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import path from 'node:path';
 
-const pkgPath = path.resolve('package.json');
-if (!fs.existsSync(pkgPath)) {
-  console.error('❌ package.json not found. Run this command from the project root folder.');
-  process.exit(1);
-}
+const procs = [];
+const isWin = process.platform === 'win32';
 
-const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
-const scripts = pkg.scripts || {};
-const required = ['dev:full', 'server', 'dev'];
+const run = (name, cmd, args) => {
+  const p = spawn(cmd, args, { stdio: ['ignore', 'pipe', 'pipe'], env: process.env });
 
-console.log('Project:', pkg.name);
-console.log('Node:', process.version);
+  p.stdout.on('data', (d) => process.stdout.write(`[${name}] ${d}`));
+  p.stderr.on('data', (d) => process.stderr.write(`[${name}] ${d}`));
 
-let ok = true;
-for (const key of required) {
-  if (!scripts[key]) {
-    console.error(`❌ Missing npm script: ${key}`);
-    ok = false;
-  } else {
-    console.log(`✅ Found npm script: ${key}`);
+  p.on('error', (err) => {
+    process.stderr.write(`[${name}] failed to start: ${err.message}\n`);
+    shutdown(1);
+  });
+
+  p.on('exit', (code) => {
+    process.stdout.write(`[${name}] exited with code ${code}\n`);
+    if (code && code !== 0) shutdown(code);
+  });
+
+  procs.push(p);
+};
+
+const shutdown = (exitCode = 0) => {
+  while (procs.length) {
+    const p = procs.pop();
+    if (p && !p.killed) p.kill('SIGTERM');
   }
-}
+  process.exitCode = exitCode;
+};
 
-if (!ok) {
-  console.error('\nYour local clone is likely old. Run:');
-  console.error('  git pull');
-  console.error('  npm install');
-  process.exit(1);
-}
+process.on('SIGINT', () => shutdown(0));
+process.on('SIGTERM', () => shutdown(0));
 
-console.log('\n✅ Environment looks ready. Run: npm run dev:full');
+run('backend', 'node', ['server.js']);
+
+const viteBin = path.resolve('node_modules', 'vite', 'bin', 'vite.js');
+if (existsSync(viteBin)) {
+  run('frontend', 'node', [viteBin, '--host', '0.0.0.0', '--port', '5173']);
+} else {
+  const npmCmd = isWin ? 'npm.cmd' : 'npm';
+  run('frontend', npmCmd, ['run', 'dev', '--', '--host', '0.0.0.0', '--port', '5173']);
+}
