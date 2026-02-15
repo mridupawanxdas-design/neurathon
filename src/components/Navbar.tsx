@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Globe, Menu, X, Sun, Moon } from "lucide-react";
 import { useLanguage, languageOptions } from "@/contexts/LanguageContext";
 import { useTheme } from "@/hooks/useTheme";
+import { Link } from "react-router-dom";
 
 const Navbar = () => {
   const { lang, setLang, t } = useLanguage();
@@ -31,7 +32,7 @@ const Navbar = () => {
       <div className="container mx-auto px-6 max-w-6xl">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <a href="#" className="flex items-center gap-2.5 group">
+          <Link to="/" className="flex items-center gap-2.5 group">
             <motion.div
               whileHover={{ scale: 1.08, rotate: 2 }}
               whileTap={{ scale: 0.95 }}
@@ -42,7 +43,7 @@ const Navbar = () => {
             <span className="font-display font-semibold text-foreground text-sm hidden sm:block tracking-tight">
               Bharat Biz-Agent
             </span>
-          </a>
+          </Link>
 
           {/* Desktop links */}
           <div className="hidden md:flex items-center gap-1">
@@ -122,14 +123,13 @@ const Navbar = () => {
             </div>
 
             {/* CTA */}
-            <motion.a
-              href="#"
+            <motion.div
               whileHover={{ scale: 1.04, boxShadow: "0 8px 30px -6px hsl(145 63% 42% / 0.4)" }}
               whileTap={{ scale: 0.97 }}
               className="hidden sm:inline-flex px-5 py-2 rounded-xl bg-green-gradient text-primary-foreground font-semibold text-sm shadow-green transition-all duration-300"
             >
-              {t("nav.tryAgent")}
-            </motion.a>
+              <Link to="/login">{t("nav.tryAgent")}</Link>
+            </motion.div>
 
             {/* Mobile menu button */}
             <motion.button
@@ -161,12 +161,13 @@ const Navbar = () => {
                 {link.label}
               </a>
             ))}
-            <a
-              href="#"
+            <Link
+              to="/login"
+              onClick={() => setMobileOpen(false)}
               className="block px-4 py-3 rounded-xl bg-green-gradient text-primary-foreground font-semibold text-sm text-center mt-3 shadow-green"
             >
               {t("nav.tryAgent")}
-            </a>
+            </Link>
           </motion.div>
         )}
       </div>

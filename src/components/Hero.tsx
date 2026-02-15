@@ -1,6 +1,7 @@
 import { motion, useScroll, useTransform } from "framer-motion";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useRef } from "react";
+import { useNavigate } from "react-router-dom";
 
 const AnimatedCounter = ({ value, suffix = "" }: { value: number; suffix?: string }) => {
   return (
@@ -24,6 +25,7 @@ const AnimatedCounter = ({ value, suffix = "" }: { value: number; suffix?: strin
 const Hero = () => {
   const { t } = useLanguage();
   const heroRef = useRef<HTMLElement>(null);
+  const navigate = useNavigate();
   const { scrollYProgress } = useScroll({
     target: heroRef,
     offset: ["start start", "end start"],
@@ -123,6 +125,7 @@ const Hero = () => {
             whileHover={{ scale: 1.03, boxShadow: "0 12px 40px -8px hsl(145 63% 42% / 0.45)" }}
             whileTap={{ scale: 0.97 }}
             className="px-8 py-4 rounded-2xl bg-green-gradient text-primary-foreground font-semibold text-lg shadow-green transition-all duration-300"
+            onClick={() => navigate("/login")}
           >
             {t("hero.cta1")}
           </motion.button>
@@ -130,6 +133,7 @@ const Hero = () => {
             whileHover={{ scale: 1.03, backgroundColor: "hsl(var(--secondary))" }}
             whileTap={{ scale: 0.97 }}
             className="px-8 py-4 rounded-2xl bg-secondary/80 text-foreground font-semibold text-lg border border-border hover:border-primary/30 transition-all duration-300"
+            onClick={() => document.getElementById("how-it-works")?.scrollIntoView({ behavior: "smooth" })}
           >
             {t("hero.cta2")}
           </motion.button>
